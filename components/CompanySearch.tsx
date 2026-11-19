@@ -86,13 +86,6 @@ export function CompanySearch() {
         </div>
       </form>
 
-      <p className="mt-2 text-[10px] leading-relaxed text-ink-500">
-        The agent searches Tavily (if configured), DuckDuckGo or Bing, crawls candidate storefronts plus
-        their about, careers and contact pages, then scores them against this brief. Missing contacts and
-        out-of-band companies go to a human instead of being guessed. For reliable name search, add a free
-        TAVILY_API_KEY.
-      </p>
-
       {error && <p className="mt-2 text-[11px] text-rose-300">{error}</p>}
       {message && <p className="mt-2 text-[11px] text-ink-300">{message}</p>}
 
