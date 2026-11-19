@@ -49,16 +49,27 @@ async function request(system: string, user: string, jsonMode: boolean, signal: 
   const key = apiKey();
   if (key) headers.authorization = `Bearer ${key}`;
 
-  const sys = process.env.LLM_NO_THINK === "1" ? `${system}\n/no_think` : system;
+  const isGptOss = model().startsWith("openai/gpt-oss");
+  const sys =
+    process.env.LLM_NO_THINK === "1" && !isGptOss ? `${system}\n/no_think` : system;
   const body: Record<string, unknown> = {
     model: model(),
     temperature: Number(process.env.LLM_TEMPERATURE || 0.3),
-    max_tokens: Number(process.env.LLM_MAX_TOKENS || 900),
-    messages: [
-      { role: "system", content: sys },
-      { role: "user", content: user },
-    ],
+    max_tokens: Number(process.env.LLM_MAX_TOKENS || 2048),
+    // GPT-OSS follows instructions better without a separate system message.
+    messages: isGptOss
+      ? [{ role: "user", content: `${sys}\n\n${user}` }]
+      : [
+          { role: "system", content: sys },
+          { role: "user", content: user },
+        ],
   };
+  if (isGptOss) {
+    // Reasoning tokens count against max_tokens. Low effort leaves room for JSON.
+    body.reasoning_effort = process.env.LLM_REASONING_EFFORT || "low";
+  } else if (process.env.LLM_REASONING_EFFORT) {
+    body.reasoning_effort = process.env.LLM_REASONING_EFFORT;
+  }
   if (jsonMode) body.response_format = { type: "json_object" };
 
   return fetch(`${baseUrl()}/chat/completions`, {
@@ -105,7 +116,13 @@ export async function llmJson<T>(system: string, user: string): Promise<LlmResul
     const tokens: number = json?.usage?.total_tokens ?? 0;
     const parsed = parseJson<T>(content);
     if (!parsed) {
-      return { data: null, tokens, mode: "live", error: "Model did not return valid JSON" };
+      const preview = content.replace(/\s+/g, " ").trim().slice(0, 160);
+      return {
+        data: null,
+        tokens,
+        mode: "live",
+        error: `Model did not return valid JSON${preview ? `: ${preview}` : " (empty content)"}`,
+      };
     }
     return { data: parsed, tokens, mode: "live" };
   } catch (err: any) {

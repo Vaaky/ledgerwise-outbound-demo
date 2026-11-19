@@ -112,6 +112,8 @@ Make sure the repo is public for the submission.
 | `LLM_MODEL` | Hosted Qwen path | model ID |
 | `LLM_NO_THINK` | Qwen3 only | `1` |
 | `LLM_TIMEOUT_MS` | Recommended | `25000` on Vercel |
+| `LLM_MAX_TOKENS` | Recommended for GPT-OSS | `2048` |
+| `LLM_REASONING_EFFORT` | Recommended for GPT-OSS | `low` |
 | `TAVILY_API_KEY` | Strongly recommended | `tvly-...` |
 | `RESEND_API_KEY` | Optional | real email only |
 | `RESEND_FROM` | Optional | `Ledgerwise Demo <onboarding@resend.dev>` |
