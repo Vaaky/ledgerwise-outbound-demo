@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink-950: #08090c;
+  --color-ink-900: #0b0d12;
+  --color-ink-850: #101319;
+  --color-ink-800: #151922;
+  --color-ink-700: #1d222d;
+  --color-ink-600: #2a303d;
+  --color-ink-400: #6f7891;
+  --color-ink-300: #9aa3b8;
+  --color-ink-100: #e7eaf2;
+  --color-lime-400: #b6f36a;
+  --color-lime-500: #a3e34a;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: #08090c;
+  color: #e7eaf2;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #b6f36a;
+  color: #08090c;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a303d transparent;
+}
+
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: fadeUp 180ms ease-out both;
+}
