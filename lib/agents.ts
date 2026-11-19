@@ -195,6 +195,38 @@ export function buildEmail(
   return { subject, body, claims };
 }
 
+const CLAIM_STOP = new Set([
+  "the", "and", "for", "with", "from", "that", "this", "your", "you", "are", "was",
+  "were", "has", "have", "had", "our", "their", "about", "into", "over", "under",
+  "more", "than", "its", "they", "them", "can", "will", "not", "but", "all", "one",
+  "two", "new", "per", "via", "using", "use", "sells", "selling", "sold", "company",
+  "brand", "page", "lists", "listed", "noticed",
+]);
+
+/** Bind a factual sentence to an evidence row only when the sentence contains that row's value. */
+function autoBindClaims(body: string, evidence: Evidence[]): Claim[] {
+  const sentences = body
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const claims: Claim[] = [];
+  for (const sentence of sentences) {
+    const haystack = sentence.toLowerCase();
+    for (const item of evidence) {
+      const tokens = item.value
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((token) => (token.length > 2 || /^\d+$/.test(token)) && !CLAIM_STOP.has(token));
+      if (!tokens.length) continue;
+      const matched = tokens.filter((token) => haystack.includes(token));
+      if (matched.length >= Math.min(2, tokens.length)) {
+        claims.push({ text: sentence, evidence_id: item.id });
+      }
+    }
+  }
+  return claims;
+}
+
 export async function draftEmail(
   companyId: string,
   opts: { promptVersionId?: string; actor?: string; useLlm?: boolean } = {},
@@ -249,21 +281,27 @@ export async function draftEmail(
     if (res.error) llmError = res.error;
     if (res.data && res.data.body) {
       const ids = new Set(writerEvidence.map((e) => e.id));
-      const llmClaims: Claim[] =
-        res.data.claims && res.data.claims.length
-          ? res.data.claims
-              .filter((c) => ids.has(c.evidence_id) && c.text?.trim())
-              .map((c) => ({ text: c.text.trim(), evidence_id: c.evidence_id }))
-          : (res.data.claim_ids ?? [])
-              .filter((cid) => ids.has(cid))
-              .map((cid) => {
-                const sentence =
-                  res.data!.body
-                    .split(/(?<=[.!?])\s+|\n+/)
-                    .find((s) => /hiring|raised|series|wholesale|amazon|retail|market/i.test(s)) ??
-                  res.data!.body;
-                return { text: sentence, evidence_id: cid };
-              });
+      const provided: Claim[] = res.data.claims?.length
+        ? res.data.claims
+            .filter((c) => ids.has(c.evidence_id) && c.text?.trim())
+            .map((c) => ({ text: c.text.trim(), evidence_id: c.evidence_id }))
+        : (res.data.claim_ids ?? [])
+            .filter((cid) => ids.has(cid))
+            .map((cid) => {
+              const sentence =
+                res.data!.body
+                  .split(/(?<=[.!?])\s+|\n+/)
+                  .find((s) => /hiring|raised|series|wholesale|amazon|retail|market/i.test(s)) ??
+                res.data!.body;
+              return { text: sentence, evidence_id: cid };
+            });
+      const seen = new Set<string>();
+      const llmClaims = [...provided, ...autoBindClaims(res.data.body, writerEvidence)].filter((claim) => {
+        const key = `${claim.evidence_id}|${claim.text.toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
       const probe = guardDraft({
         kind: "outreach",
         subject: res.data.subject,
