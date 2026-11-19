@@ -263,7 +263,11 @@ export async function draftEmail(
         claims = llmClaims;
         note = `Live model (${res.mode}) draft passed guards.`;
       } else {
-        note = "Model draft failed the claim guard; fell back to the deterministic writer.";
+        const failed = probe.checks
+          .filter((c) => !c.pass)
+          .map((c) => `${c.label}: ${c.detail}`)
+          .join(" | ");
+        note = `Model draft failed guards (${failed.slice(0, 300)}); fell back to the deterministic writer.`;
       }
     } else if (llmError) {
       note = `Live model call failed (${llmError}); fell back to the deterministic writer.`;
