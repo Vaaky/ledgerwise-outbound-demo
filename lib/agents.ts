@@ -221,15 +221,24 @@ export async function draftEmail(
   let llmError: string | null = null;
 
   if (llmEnabled() && opts.useLlm !== false) {
-    const evList = evidence
+    // Revenue is a scoring input, not something the writer may quote.
+    const writerEvidence = evidence.filter((e) => e.field !== "revenue");
+    const evList = writerEvidence
       .map((e) => `- id=${e.id} | ${e.label}: ${e.value} | source: ${e.source_url} | quote: "${e.quote}"`)
       .join("\n");
-    const res = await llmJson<{ subject: string; body: string; claim_ids: string[] }>(
+    const res = await llmJson<{
+      subject: string;
+      body: string;
+      claim_ids?: string[];
+      claims?: { text: string; evidence_id: string }[];
+    }>(
       [
         "You write one short cold email for Ledgerwise, a US bookkeeping firm for e-commerce brands.",
-        "Hard rules: never mention price, fees, cost or money. Every factual sentence must be traceable to the evidence list.",
-        "Max 110 words. One ask: a 15-minute call. Plain text. Sign as Maya Chen, Ledgerwise.",
-        'Return JSON: {"subject": string, "body": string, "claim_ids": string[]} where claim_ids are evidence ids used.',
+        "Hard rules: never mention price, fees, cost, money, revenue, dollar amounts or percentages. Every factual sentence must be traceable to the evidence list.",
+        "Do not invent titles, numbers, events or channels. If you mention the contact's title or a hiring signal, include that exact sentence in claims.",
+        "Max 110 words. One ask: a 15-minute call. Plain text.",
+        'End with exactly:\nMaya Chen\nLedgerwise — monthly bookkeeping for e-commerce brands\nNot relevant? Reply "stop" and I won\'t follow up.',
+        'Return JSON: {"subject": string, "body": string, "claims": [{"text": exact sentence from body, "evidence_id": one id from the list}]}. Every factual sentence in the body must appear in claims.',
       ].join("\n"),
       `Company: ${company.name} (${company.domain}), ${company.hq}, ${company.headcount} staff, channels: ${company.channels}.\nContact: ${contact.name}, ${contact.title}.\nQualification reasons: ${score.reasons
         .map((r) => `${r.label} (${r.claim})`)
@@ -239,16 +248,22 @@ export async function draftEmail(
     mode = res.mode;
     if (res.error) llmError = res.error;
     if (res.data && res.data.body) {
-      const ids = new Set(evidence.map((e) => e.id));
-      const llmClaims: Claim[] = (res.data.claim_ids ?? [])
-        .filter((cid) => ids.has(cid))
-        .map((cid) => {
-          const sentence =
-            res.data!.body
-              .split(/(?<=[.!?])\s+|\n+/)
-              .find((s) => /hiring|raised|series|wholesale|amazon|retail|market/i.test(s)) ?? res.data!.body;
-          return { text: sentence, evidence_id: cid };
-        });
+      const ids = new Set(writerEvidence.map((e) => e.id));
+      const llmClaims: Claim[] =
+        res.data.claims && res.data.claims.length
+          ? res.data.claims
+              .filter((c) => ids.has(c.evidence_id) && c.text?.trim())
+              .map((c) => ({ text: c.text.trim(), evidence_id: c.evidence_id }))
+          : (res.data.claim_ids ?? [])
+              .filter((cid) => ids.has(cid))
+              .map((cid) => {
+                const sentence =
+                  res.data!.body
+                    .split(/(?<=[.!?])\s+|\n+/)
+                    .find((s) => /hiring|raised|series|wholesale|amazon|retail|market/i.test(s)) ??
+                  res.data!.body;
+                return { text: sentence, evidence_id: cid };
+              });
       const probe = guardDraft({
         kind: "outreach",
         subject: res.data.subject,
