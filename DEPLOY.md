@@ -17,7 +17,7 @@ The important constraint: **Vercel functions cannot reach your laptop's `localho
 
 Pick **one** of Groq or the `LLM_*` trio. Do not set `LLM_BASE_URL` to localhost on Vercel.
 
-If Groq says `model_not_found`, copy a current model ID from the Groq console into `GROQ_MODEL`. The code default may be older than the models your account exposes.
+The app default is **`openai/gpt-oss-20b`** — fast and cheap. For better writing quality use **`openai/gpt-oss-120b`**. Groq's current model IDs are listed at [console.groq.com/docs/models](https://console.groq.com/docs/models). Do not use `llama-3.3-70b-versatile`; it is now an Enterprise-only model and will fail on a standard key.
 
 ---
 

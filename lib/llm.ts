@@ -9,7 +9,7 @@ function apiKey(): string {
 }
 
 function model(): string {
-  return process.env.LLM_MODEL || process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  return process.env.LLM_MODEL || process.env.GROQ_MODEL || "openai/gpt-oss-20b";
 }
 
 export function llmEnabled(): boolean {

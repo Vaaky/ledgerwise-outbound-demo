@@ -218,6 +218,7 @@ export async function draftEmail(
   let tokens = 0;
   let mode: "live" | "mock" = "mock";
   let note = "Deterministic writer (no LLM key or mock mode).";
+  let llmError: string | null = null;
 
   if (llmEnabled() && opts.useLlm !== false) {
     const evList = evidence
@@ -236,6 +237,7 @@ export async function draftEmail(
     );
     tokens = res.tokens;
     mode = res.mode;
+    if (res.error) llmError = res.error;
     if (res.data && res.data.body) {
       const ids = new Set(evidence.map((e) => e.id));
       const llmClaims: Claim[] = (res.data.claim_ids ?? [])
@@ -263,6 +265,10 @@ export async function draftEmail(
       } else {
         note = "Model draft failed the claim guard; fell back to the deterministic writer.";
       }
+    } else if (llmError) {
+      note = `Live model call failed (${llmError}); fell back to the deterministic writer.`;
+    } else {
+      note = "Model returned no usable draft; fell back to the deterministic writer.";
     }
   }
 
